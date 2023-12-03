@@ -25,7 +25,7 @@ const pFirst = /(\d|one|two|three|four|five|six|seven|eight|nine)/;
 const pLast = /(\d|eno|owt|eerht|ruof|evif|xis|neves|thgie|enin)/;
 
 try {
-  const data = fs.readFileSync('./Trebuchet/text.txt', 'utf8'); // Change 'input.txt' to your input file
+  const data = fs.readFileSync('./Trebuchet/text.txt', 'utf8');
 
   data.split('\n').forEach((line) => {
     const first = parseNum(line.match(pFirst)[1]);
