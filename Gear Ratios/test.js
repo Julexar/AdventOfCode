@@ -45,8 +45,6 @@ const result = Array.from(found).reduce((sum, index) => sum + numbers[index], 0)
 console.log("Part 1 Solution: " + result);
 
 //Part 2
-numbers = [];
-lineMap = {};
 
 for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
