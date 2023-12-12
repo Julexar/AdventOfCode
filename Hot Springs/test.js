@@ -8,9 +8,9 @@ for (const record of records) {
     const damagedIndices = [...record.conditions.matchAll(/\?/g)].map(m => m.index);
 
     record.possibleArrangements = [];
-    for (let bits = 0; bits < 1 << damagedIndices.length; bits++) {
-        let i = 0;
-        const arrangement = record.conditions.replace(/\?/g, m => ".#"[bits >> i++ & 1]);
+    for (let i = 0; i < 1 << damagedIndices.length; i++) {
+        let j = 0;
+        const arrangement = record.conditions.replace(/\?/g, m => ".#"[i >> j++ & 1]);
         const runs = [...arrangement.matchAll(/#+/g)].map(m => m[0].length);
         if (arrayEqual(runs, record.runLengths)) {
             record.possibleArrangements.push(arrangement);
