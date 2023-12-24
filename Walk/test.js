@@ -1,174 +1,176 @@
 const fs = require('fs');
-const { Queue } = require('queue-typescript');
-const graphlib = require('graphlib');
+const { Deque } = require('@blakeembrey/deque');
 
-function readInput() {
-    const data = fs.readFileSync('./Walk/text.txt', 'utf8');
+const mk2n = (x, y) => (x >= y ? x * x + x + y : y * y + x);
+const umk2n = (z) => {
+  const q = Math.floor(Math.sqrt(z));
+  const l = z - q * q;
+  return l < q ? [l, q] : [q, l - q];
+};
 
-    return data.trim().split('\n');
-}
+const input = fs.readFileSync('./Walk/text.txt', 'utf8');
 
-function find_max_path(grid, S = [1, 0], E = [grid[0].length - 2, grid.length - 1], part = 1) {
-    const q = new Queue();
-    q.enqueue([S, new Set()]);
-    const paths = [];
-
-    while (q.length !== 0) {
-        const [p, path] = q.dequeue();
-        if (p[0] === E[0] && p[1] === E[1]) {
-            paths.push(path.size);
-            continue;
+const getLongestHikeSlippery = () => {
+    const map = input.trim().split('\n').map((line) => line.split(''));
+  
+    const startX = 1;
+    const startY = 0;
+  
+    const endX = map[0].length - 2;
+    const endY = map.length - 1;
+  
+    const queue = new Deque([[startX, startY, 0, [mk2n(startX, startY)]]]);
+  
+    const hikes = [];
+  
+    while (queue.size > 0) {
+      const [x, y, steps, visited] = queue.popLeft();
+  
+      if (x === endX && y === endY) {
+        hikes.push(steps);
+      }
+  
+      const neighbors = [];
+  
+      const tile = map[y][x];
+  
+      if (tile === '.') {
+        if (map[y]?.[x - 1] !== '>') neighbors.push([x - 1, y]);
+        if (map[y]?.[x + 1] !== '<') neighbors.push([x + 1, y]);
+        if (map[y - 1]?.[x] !== 'v') neighbors.push([x, y - 1]);
+        if (map[y + 1]?.[x] !== '^') neighbors.push([x, y + 1]);
+      } else {
+        if (tile === '>') neighbors.push([x + 1, y]);
+        if (tile === '<') neighbors.push([x - 1, y]);
+        if (tile === '^') neighbors.push([x, y - 1]);
+        if (tile === 'v') neighbors.push([x, y + 1]);
+      }
+  
+      for (const [nx, ny] of neighbors) {
+        if (
+          nx < 0 ||
+          ny < 0 ||
+          nx >= map[0].length ||
+          ny >= map.length ||
+          map[ny][nx] === '#'
+        ) {
+          continue;
         }
-        const [x, y] = p;
-        let dirs = [[-1, 0], [+1, 0], [0, -1], [0, +1]];
-
-        if (part === 1) {
-            if (grid[y][x] === 'v') dirs = [[0, +1]];
-            if (grid[y][x] === '^') dirs = [[0, -1]];
-            if (grid[y][x] === '>') dirs = [[+1, 0]];
-            if (grid[y][x] === '<') dirs = [[-1, 0]];
+  
+        const key = mk2n(nx, ny);
+  
+        if (!visited.includes(key)) {
+          queue.push([nx, ny, steps + 1, [...visited, key]]);
         }
-
-        for (const [dx, dy] of dirs) {
-            const xn = x + dx;
-            const yn = y + dy;
-
-            if (xn < 0 || xn >= grid[0].length || yn < 0 || yn >= grid.length) {
-                continue;
-            }
-
-            if (grid[yn][xn] === '#') {
-                continue;
-            }
-
-            const pnew = [xn, yn];
-
-            if (path.has(pnew.toString())) {
-                continue;
-            } else {
-                const pathnew = new Set(path);
-                pathnew.add(pnew.toString());
-                q.enqueue([pnew, pathnew]);
-            }
-        }
+      }
     }
+  
+    return hikes.sort((a, b) => b - a)[0];
+};
 
-    return Math.max(...paths);
-}
-
-function solvePart1() {
-    const grid = readInput();
-    const S = [1, 0];
-    const E = [grid[0].length - 2, grid.length - 1];
-    return find_max_path(grid, S, E);
-}
-
-console.log("Part 1 Solution:", solvePart1());
-
-function mapNodes(grid) {
-    const nodes = [
-        [1, 0],
-        [grid[0].length - 2, grid.length - 1]
-    ];
-
-    for (let x = 1; x < grid[0].length - 1; x++) {
-        for (let y = 1; y < grid.length - 1; y++) {
-            if (grid[y][x] !== "#") {
-                const neighbors = [
-                    [x - 1, y],
-                    [x + 1, y],
-                    [x, y - 1],
-                    [x, y + 1]
-                ].filter(([dx, dy]) => {
-                    return dx >= 0 && dy >= 0 && dy < grid.length && dx < grid[0].length && grid[dy][dx] !== "#";
-                });
-
-                if (neighbors.length > 2) {
-                    nodes.push([x, y]);
-                }
-            }
+const getIntersections = (map) => {
+    const intersections = [];
+  
+    for (let y = 0; y < map.length; y++) {
+      for (let x = 0; x < map[0].length; x++) {
+        if (map[y][x] === '.') {
+          let neighbors = [
+            map[y][x - 1],
+            map[y][x + 1],
+            map[y - 1]?.[x],
+            map[y + 1]?.[x],
+          ].filter((x) => x === '#');
+  
+          if (neighbors.length < 2) {
+            intersections.push(mk2n(x, y));
+          }
         }
+      }
     }
+  
+    return intersections;
+};
 
-    const nodeMap = {};
-    for (const n of nodes) {
-        const paths = {};
-        const queue = new Queue();
-        queue.enqueue([n[0], n[1], new Set([`${n[0]},${n[1]}`])]);
-
-        while (queue.length !== 0) {
-            const [px, py, path] = queue.dequeue();
-            if (path.size > 0) {
-                paths[`${px},${py}`] = path.size - 1;
-            }
-
-            for (const [dx, dy] of [
-                [-1, 0],
-                [1, 0],
-                [0, -1],
-                [0, 1]
-            ]) {
-                const xn = px + dx;
-                const yn = py + dy;
-
-                if (xn < 0 || xn >= grid[0].length || yn < 0 || yn >= grid.length) {
-                    continue;
-                }
-
-                if (grid[yn][xn] === "#") {
-                    continue;
-                }
-
-                const pNewString = `${xn},${yn}`;
-
-                if (!path.has(pNewString)) {
-                    const pathNew = new Set([...path, pNewString]);
-                    queue.enqueue([xn, yn, pathNew]);
-                }
-            }
-        }
-
-        nodeMap[`${n[0]},${n[1]}`] = paths;
+const getConnections = (map, intersections) => {
+    const connections = new Map();
+  
+    for (const intersection of intersections) {
+      connections.set(intersection, []);
     }
-
-    return nodeMap;
-}
-
-function solvePart2() {
-    const grid = readInput();
-    const S = [1, 0];
-    const E = [grid[0].length - 2, grid.length - 1];
-    const nodeMap = mapNodes(grid);
-    const G = new graphlib.Graph();
-
-    for (const [n, c] of Object.entries(nodeMap)) {
-        for (const [m, d] of Object.entries(c)) {
-            G.setEdge(n, m, { weight: d });
+  
+    for (const intersection of intersections) {
+      const [x, y] = umk2n(intersection);
+  
+      const queue = [[x, y, 0]];
+      const visited = new Set([intersection]);
+  
+      while (queue.length > 0) {
+        const [x, y, distance] = queue.pop();
+  
+        if (distance !== 0 && intersections.includes(mk2n(x, y))) {
+          connections.get(intersection).push([mk2n(x, y), distance]);
+          continue;
         }
+  
+        const neighbors = [
+          [x - 1, y],
+          [x + 1, y],
+          [x, y - 1],
+          [x, y + 1],
+        ].filter(
+          ([x, y]) =>
+            x >= 0 &&
+            y >= 0 &&
+            x < map[0].length &&
+            y < map.length &&
+            map[y][x] !== '#'
+        );
+  
+        for (const [nx, ny] of neighbors) {
+          if (!visited.has(mk2n(nx, ny))) {
+            queue.push([nx, ny, distance + 1]);
+            visited.add(mk2n(nx, ny));
+          }
+        }
+      }
     }
+  
+    return connections;
+};
 
-    const paths = [];
-    const visited = new Set();
+const getLongestPath = (connections, current, end, visited = new Set()) => {
+    if (current === end) return 0;
+  
+    let maxDistance = Number.MIN_SAFE_INTEGER;
+  
+    visited.add(current);
+  
+    for (let [neighbour, distance] of connections.get(current)) {
+      if (!visited.has(neighbour)) {
+        maxDistance = Math.max(
+          maxDistance,
+          distance + getLongestPath(connections, neighbour, end, visited)
+        );
+      }
+    }
+  
+    visited.delete(current);
+  
+    return maxDistance;
+};
 
-    const dfs = (node, currentPath) => {
-        visited.add(node);
+const getLongestHike = () => {
+    const map = input.trim().split('\n').map((line) => line.split(''));
+  
+    const start = mk2n(1, 0);
+    const end = mk2n(map[0].length - 2, map.length - 1);
+  
+    const intersections = [start, end, ...getIntersections(map)];
+  
+    const connections = getConnections(map, intersections);
+  
+    return getLongestPath(connections, start, end);
+};
 
-        if (node === E.toString()) {
-            paths.push(currentPath);
-        } else {
-            for (const neighbor of G.neighbors(node)) {
-                if (!visited.has(neighbor)) {
-                    dfs(neighbor, currentPath + G.edge(node, neighbor).weight);
-                }
-            }
-        }
-
-        visited.delete(node);
-    };
-
-    dfs(S.toString(), 0);
-
-    return Math.max(...paths);
-}
-
-console.log("Part 2 Solution:", solvePart2());
+console.log('Part 1 Solution:', getLongestHikeSlippery());
+console.log('Part 2 Solution:', getLongestHike());
